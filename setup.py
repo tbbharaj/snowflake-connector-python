@@ -229,11 +229,13 @@ setup(
         "idna>=2.5,<3",
         "certifi>=2017.4.17",
         'dataclasses<1.0;python_version=="3.6"',
+        "antlr4-python3-runtime",
     ],
     namespace_packages=["snowflake"],
     packages=[
         "snowflake.connector",
         "snowflake.connector.tool",
+        "snowflake.connector.antlr",
         "snowflake.connector.vendored",
         "snowflake.connector.vendored.requests",
         "snowflake.connector.vendored.urllib3",
