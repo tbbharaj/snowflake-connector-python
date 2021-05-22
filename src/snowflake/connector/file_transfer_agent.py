@@ -15,7 +15,7 @@ from concurrent.futures.thread import ThreadPoolExecutor
 from logging import getLogger
 from queue import Queue
 from random import randint
-from time import sleep, time
+from time import time
 from typing import IO, TYPE_CHECKING, Any, Dict, List, Optional, Type, Union
 
 from .azure_storage_client import SnowflakeAzureRestClient
@@ -45,16 +45,13 @@ from .errors import (
     Error,
     InternalError,
     OperationalError,
-    PresignedUrlExpiredError,
     ProgrammingError,
-    TokenExpiredError,
 )
 from .file_compression_type import CompressionTypes, lookup_by_mime_sub_type
 from .gcs_storage_client import SnowflakeGCSRestClient
 from .local_storage_client import SnowflakeLocalStorageClient
 from .s3_storage_client import SnowflakeS3RestClient
 from .storage_client import SnowflakeFileEncryptionMaterial, SnowflakeStorageClient
-from .vendored.requests.exceptions import ConnectionError, Timeout
 
 if TYPE_CHECKING:  # pragma: no cover
     from snowflake.connector.cursor import SnowflakeCursor
@@ -527,8 +524,8 @@ class SnowflakeFileTransferAgent:
             return SnowflakeAzureRestClient(
                 meta,
                 self.credentials,
-                self._stage_info,
                 4 * 1024 * 1024 + 1,
+                self._stage_info,
                 self._use_s3_regional_url,
             )
         elif self._stage_location_type == S3_FS:
