@@ -30,8 +30,6 @@ from .options import installed_pandas
 from .time_util import DecorrelateJitterBackoff, TimerContextManager
 from .vendored import requests
 
-# from threading import Lock
-
 logger = getLogger(__name__)
 
 MAX_DOWNLOAD_RETRY = 10
@@ -51,8 +49,6 @@ else:
 SSE_C_ALGORITHM = "x-amz-server-side-encryption-customer-algorithm"
 SSE_C_KEY = "x-amz-server-side-encryption-customer-key"
 SSE_C_AES = "AES256"
-
-# load_lock = Lock()
 
 
 @unique
@@ -541,7 +537,6 @@ class ArrowResultBatch(ResultBatch):
         Iterator[Union[Tuple, Exception]],
         Iterator[Table],
     ]:
-        #        load_lock.acquire()
         logger.info("DOWNLOAD START %d", self.rowcount)
         iter_unit = kwargs.pop("iter_unit", ROW_UNIT)
         if self._local:
@@ -552,18 +547,4 @@ class ArrowResultBatch(ResultBatch):
             loaded_data = self._load(response, iter_unit)
         self._metrics[DownloadMetrics.load.value] = load_metric.get_timing_millis()
         logger.info("DOWNLOAD FINISH %d", self.rowcount)
-        #        load_lock.release()
         return loaded_data
-
-
-#                       response = requests.get(
-#                           self._remote_chunk_info.url,
-#                           headers=self._chunk_headers,
-#                           timeout=DOWNLOAD_TIMEOUT,
-#                           stream=True,
-#                       )
-#                       if responseB.raw.data != response.raw.data:
-#                            response = responseB
-#                            print(self.rowcount)
-#                   #    assert responseB.raw.data == response.raw.data
-#                       print(len(responseB.raw.data), len(response.raw.data))
