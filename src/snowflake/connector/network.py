@@ -925,7 +925,6 @@ class SnowflakeRestful(object):
             # the response within the time. If not, ConnectReadTimeout or
             # ReadTimeout is raised.
             if "kushan" in kwargs:
-                print(session)
                 return session.request(
                     method=method,
                     url=full_url,
