@@ -902,6 +902,7 @@ class SnowflakeRestful(object):
         is_raw_binary=False,
         binary_data_handler=None,
         socket_timeout=DEFAULT_SOCKET_CONNECT_TIMEOUT,
+        **kwargs,
     ):
         if socket_timeout > DEFAULT_SOCKET_CONNECT_TIMEOUT:
             # socket timeout should not be more than the default.
@@ -923,6 +924,17 @@ class SnowflakeRestful(object):
             # socket timeout is constant. You should be able to receive
             # the response within the time. If not, ConnectReadTimeout or
             # ReadTimeout is raised.
+            if "kushan" in kwargs:
+                print(session)
+                return session.request(
+                    method=method,
+                    url=full_url,
+                    headers=headers,
+                    timeout=socket_timeout,
+                    stream=True,
+                    auth=SnowflakeAuth(token),
+                    data=input_data,
+                )
             raw_ret = session.request(
                 method=method,
                 url=full_url,

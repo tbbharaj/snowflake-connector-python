@@ -265,12 +265,23 @@ class ResultBatch(abc.ABC):
         for retry in range(MAX_DOWNLOAD_RETRY):
             try:
                 with TimerContextManager() as download_metric:
-                    response = requests.get(
-                        self._remote_chunk_info.url,
-                        headers=self._chunk_headers,
-                        timeout=DOWNLOAD_TIMEOUT,
-                        stream=True,
-                    )
+                    if "connection" in kwargs and True:
+                        connection: "SnowflakeConnection" = kwargs["connection"]
+                        response = connection.rest.fetch(
+                            "get",
+                            self._remote_chunk_info.url,
+                            self._chunk_headers,
+                            timeout=DOWNLOAD_TIMEOUT,
+                            is_raw_binary=True,
+                            kushan=True,
+                        )
+                    else:
+                        response = requests.get(
+                            self._remote_chunk_info.url,
+                            headers=self._chunk_headers,
+                            timeout=DOWNLOAD_TIMEOUT,
+                            stream=True,
+                        )
                     if response.ok:
                         break
             except Exception as e:
@@ -536,10 +547,23 @@ class ArrowResultBatch(ResultBatch):
         if self._local:
             #            load_lock.release()
             return self._from_data(self._data, iter_unit)
-        response = self._download()
+        response = self._download(**kwargs)
         with TimerContextManager() as load_metric:
             loaded_data = self._load(response, iter_unit)
         self._metrics[DownloadMetrics.load.value] = load_metric.get_timing_millis()
         logger.info("DOWNLOAD FINISH %d", self.rowcount)
         #        load_lock.release()
         return loaded_data
+
+
+#                       response = requests.get(
+#                           self._remote_chunk_info.url,
+#                           headers=self._chunk_headers,
+#                           timeout=DOWNLOAD_TIMEOUT,
+#                           stream=True,
+#                       )
+#                       if responseB.raw.data != response.raw.data:
+#                            response = responseB
+#                            print(self.rowcount)
+#                   #    assert responseB.raw.data == response.raw.data
+#                       print(len(responseB.raw.data), len(response.raw.data))
