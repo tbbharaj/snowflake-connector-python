@@ -419,7 +419,7 @@ class JSONResultBatch(ResultBatch):
     ) -> Union[Iterator[Union[Dict, Exception]], Iterator[Union[Tuple, Exception]]]:
         if self._local:
             return iter(self._data)
-        response = self._download()
+        response = self._download(**kwargs)
         # Load data to a intermediate form
         with TimerContextManager() as load_metric:
             downloaded_data = self._load(response)
@@ -475,6 +475,7 @@ class ArrowResultBatch(ResultBatch):
         )
         if row_unit == TABLE_UNIT:
             iter.init_table_unit()
+        response.raw.close()
         return iter
 
     def _from_data(

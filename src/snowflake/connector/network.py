@@ -924,16 +924,17 @@ class SnowflakeRestful(object):
             # socket timeout is constant. You should be able to receive
             # the response within the time. If not, ConnectReadTimeout or
             # ReadTimeout is raised.
-            if "kushan" in kwargs:
-                return session.request(
-                    method=method,
-                    url=full_url,
-                    headers=headers,
-                    timeout=socket_timeout,
-                    stream=True,
-                    auth=SnowflakeAuth(token),
-                    data=input_data,
-                )
+            #            if "kushan" in kwargs:
+            #                a = session.request(
+            #                    method=method,
+            #                    url=full_url,
+            #                    headers=headers,
+            #                    timeout=socket_timeout,
+            #                    stream=True,
+            #                    auth=SnowflakeAuth(token),
+            #                    data=input_data,
+            #                )
+            #                return a
             raw_ret = session.request(
                 method=method,
                 url=full_url,
@@ -952,6 +953,8 @@ class SnowflakeRestful(object):
                     if is_raw_text:
                         ret = raw_ret.text
                     elif is_raw_binary:
+                        if "kushan" in kwargs:
+                            return raw_ret
                         ret = binary_data_handler.to_iterator(
                             raw_ret.raw, download_end_time - download_start_time
                         )
@@ -1013,7 +1016,8 @@ class SnowflakeRestful(object):
                     )
                     return None  # required for tests
             finally:
-                raw_ret.close()  # ensure response is closed
+                if "kushan" not in kwargs:
+                    raw_ret.close()  # ensure response is closed
         except SSLError as se:
             logger.debug("Hit non-retryable SSL error, %s", str(se))
             TelemetryService.get_instance().log_http_request_error(
