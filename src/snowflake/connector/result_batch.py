@@ -475,7 +475,7 @@ class ArrowResultBatch(ResultBatch):
         )
         if row_unit == TABLE_UNIT:
             iter.init_table_unit()
-        response.raw.close()
+        response.close()
         return iter
 
     def _from_data(
