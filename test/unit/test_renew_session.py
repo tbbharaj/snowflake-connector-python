@@ -32,7 +32,7 @@ def test_renew_session():
                 "sessionToken": NEW_SESSION_TOKEN,
                 "masterToken": NEW_MASTER_TOKEN,
             },
-        }
+        }, False
 
     rest._request_exec = fake_request_exec
 
@@ -43,7 +43,11 @@ def test_renew_session():
 
     # inject a fake method (failure)
     def fake_request_exec(**_):
-        return {"success": False, "message": "failed to renew session", "code": 987654}
+        return {
+            "success": False,
+            "message": "failed to renew session",
+            "code": 987654,
+        }, False
 
     rest._request_exec = fake_request_exec
 

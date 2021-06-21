@@ -13,6 +13,7 @@ import logging
 import time
 import traceback
 import uuid
+from enum import Enum, unique
 from io import BytesIO
 from threading import Lock
 
@@ -185,6 +186,14 @@ def is_retryable_http_code(code: int) -> bool:
         METHOD_NOT_ALLOWED,  # 405
         REQUEST_TIMEOUT,  # 408
     )
+
+
+@unique
+class RequestType(Enum):
+    Default = 0
+    Text = 1
+    Binary = 2
+    Raw = 3
 
 
 class ProxySupportAdapter(HTTPAdapter):
@@ -577,7 +586,7 @@ class SnowflakeRestful(object):
             port=self._port,
             url=url,
         )
-        ret = self.fetch(
+        ret, _ = self.fetch(
             "get",
             full_url,
             headers,
@@ -626,7 +635,7 @@ class SnowflakeRestful(object):
             ret = probe_connection(full_url)
             pprint(ret)
 
-        ret = self.fetch(
+        ret, _ = self.fetch(
             "post",
             full_url,
             headers,
@@ -780,7 +789,7 @@ class SnowflakeRestful(object):
                 retry_timeout=retry_ctx.total_timeout,
                 retry_count=retry_ctx.cnt,
             )
-            return {}
+            return {}, False
         except RetryRequest as e:
             if (
                 retry_ctx.cnt
@@ -840,7 +849,7 @@ class SnowflakeRestful(object):
             if not no_retry:
                 raise e
             logger.debug("Ignored error", exc_info=True)
-            return {}
+            return {}, False
 
     def handle_invalid_certificate_error(self, conn, full_url, cause):
         # all other errors raise exception
@@ -898,11 +907,9 @@ class SnowflakeRestful(object):
         data,
         token,
         catch_okta_unauthorized_error=False,
-        is_raw_text=False,
-        is_raw_binary=False,
+        request_type: RequestType = RequestType.Default,
         binary_data_handler=None,
         socket_timeout=DEFAULT_SOCKET_CONNECT_TIMEOUT,
-        **kwargs,
     ):
         if socket_timeout > DEFAULT_SOCKET_CONNECT_TIMEOUT:
             # socket timeout should not be more than the default.
@@ -924,17 +931,10 @@ class SnowflakeRestful(object):
             # socket timeout is constant. You should be able to receive
             # the response within the time. If not, ConnectReadTimeout or
             # ReadTimeout is raised.
-            #            if "kushan" in kwargs:
-            #                a = session.request(
-            #                    method=method,
-            #                    url=full_url,
-            #                    headers=headers,
-            #                    timeout=socket_timeout,
-            #                    stream=True,
-            #                    auth=SnowflakeAuth(token),
-            #                    data=input_data,
-            #                )
-            #                return a
+
+            stream = (
+                request_type == RequestType.Binary or request_type == RequestType.Raw
+            )
             raw_ret = session.request(
                 method=method,
                 url=full_url,
@@ -942,7 +942,7 @@ class SnowflakeRestful(object):
                 data=input_data,
                 timeout=socket_timeout,
                 verify=True,
-                stream=is_raw_binary,
+                stream=stream,
                 auth=SnowflakeAuth(token),
             )
             download_end_time = get_time_millis()
@@ -950,17 +950,19 @@ class SnowflakeRestful(object):
             try:
                 if raw_ret.status_code == OK:
                     logger.debug("SUCCESS")
-                    if is_raw_text:
+                    delegate_close = False
+                    if request_type == RequestType.Text:
                         ret = raw_ret.text
-                    elif is_raw_binary:
-                        if "kushan" in kwargs:
-                            return raw_ret
+                    elif request_type == RequestType.Binary:
                         ret = binary_data_handler.to_iterator(
                             raw_ret.raw, download_end_time - download_start_time
                         )
+                    elif request_type == RequestType.Raw:
+                        ret = raw_ret
+                        delegate_close = True
                     else:
                         ret = raw_ret.json()
-                    return ret
+                    return ret, delegate_close
 
                 if is_retryable_http_code(raw_ret.status_code):
                     ex = STATUS_TO_EXCEPTION.get(
@@ -1016,7 +1018,7 @@ class SnowflakeRestful(object):
                     )
                     return None  # required for tests
             finally:
-                if "kushan" not in kwargs:
+                if request_type != RequestType.Raw:
                     raw_ret.close()  # ensure response is closed
         except SSLError as se:
             logger.debug("Hit non-retryable SSL error, %s", str(se))

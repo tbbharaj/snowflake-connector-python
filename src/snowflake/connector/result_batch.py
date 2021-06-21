@@ -26,6 +26,7 @@ from .arrow_context import ArrowConverterContext
 from .constants import ROW_UNIT, TABLE_UNIT
 from .errorcode import ER_FAILED_TO_CONVERT_ROW_TO_PYTHON_TYPE
 from .errors import Error, InterfaceError
+from .network import RequestType
 from .options import installed_pandas
 from .time_util import DecorrelateJitterBackoff, TimerContextManager
 from .vendored import requests
@@ -261,16 +262,18 @@ class ResultBatch(abc.ABC):
         for retry in range(MAX_DOWNLOAD_RETRY):
             try:
                 with TimerContextManager() as download_metric:
-                    if "connection" in kwargs and True:
+                    close_response = False
+                    if "connection" in kwargs:
                         connection: "SnowflakeConnection" = kwargs["connection"]
-                        response = connection.rest.fetch(
+                        fetch_response = connection.rest.fetch(
                             "get",
                             self._remote_chunk_info.url,
                             self._chunk_headers,
                             timeout=DOWNLOAD_TIMEOUT,
-                            is_raw_binary=True,
-                            kushan=True,
+                            request_type=RequestType.Raw,
                         )
+                        if fetch_response:
+                            response, close_response = fetch_response
                     else:
                         response = requests.get(
                             self._remote_chunk_info.url,
@@ -295,7 +298,7 @@ class ResultBatch(abc.ABC):
         self._metrics[
             DownloadMetrics.download.value
         ] = download_metric.get_timing_millis()
-        return response
+        return response, close_response
 
     @abc.abstractmethod
     def create_iter(
@@ -419,10 +422,12 @@ class JSONResultBatch(ResultBatch):
     ) -> Union[Iterator[Union[Dict, Exception]], Iterator[Union[Tuple, Exception]]]:
         if self._local:
             return iter(self._data)
-        response = self._download(**kwargs)
+        response, close_response = self._download(**kwargs)
         # Load data to a intermediate form
         with TimerContextManager() as load_metric:
             downloaded_data = self._load(response)
+            if close_response:
+                response.close()
         self._metrics[DownloadMetrics.load.value] = load_metric.get_timing_millis()
         # Process downloaded data
         with TimerContextManager() as parse_metric:
@@ -475,7 +480,7 @@ class ArrowResultBatch(ResultBatch):
         )
         if row_unit == TABLE_UNIT:
             iter.init_table_unit()
-        response.close()
+
         return iter
 
     def _from_data(
@@ -541,11 +546,12 @@ class ArrowResultBatch(ResultBatch):
         logger.info("DOWNLOAD START %d", self.rowcount)
         iter_unit = kwargs.pop("iter_unit", ROW_UNIT)
         if self._local:
-            #            load_lock.release()
             return self._from_data(self._data, iter_unit)
-        response = self._download(**kwargs)
+        response, close_response = self._download(**kwargs)
         with TimerContextManager() as load_metric:
             loaded_data = self._load(response, iter_unit)
+            if close_response:
+                response.close()
         self._metrics[DownloadMetrics.load.value] = load_metric.get_timing_millis()
         logger.info("DOWNLOAD FINISH %d", self.rowcount)
         return loaded_data

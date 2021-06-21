@@ -18,7 +18,11 @@ from .constants import (
 )
 from .errorcode import ER_IDP_CONNECTION_ERROR, ER_INCORRECT_DESTINATION
 from .errors import DatabaseError, Error
-from .network import CONTENT_TYPE_APPLICATION_JSON, PYTHON_CONNECTOR_USER_AGENT
+from .network import (
+    CONTENT_TYPE_APPLICATION_JSON,
+    PYTHON_CONNECTOR_USER_AGENT,
+    RequestType,
+)
 from .sqlstate import SQLSTATE_CONNECTION_WAS_NOT_ESTABLISHED
 
 logger = logging.getLogger(__name__)
@@ -189,7 +193,7 @@ class AuthByOkta(AuthByPlugin):
             "username": user,
             "password": password,
         }
-        ret = self._rest.fetch(
+        ret, _ = self._rest.fetch(
             "post",
             token_url,
             headers,
@@ -228,13 +232,13 @@ class AuthByOkta(AuthByPlugin):
         headers = {
             HTTP_HEADER_ACCEPT: "*/*",
         }
-        response_html = self._rest.fetch(
+        response_html, _ = self._rest.fetch(
             "get",
             sso_url,
             headers,
             timeout=self._rest._connection.login_timeout,
             socket_timeout=self._rest._connection.login_timeout,
-            is_raw_text=True,
+            request_type=RequestType.Text,
         )
         return response_html
 

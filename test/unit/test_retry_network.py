@@ -187,7 +187,7 @@ def test_fetch():
             raise NotRetryableException("cannot retry")
         else:
             # return success in the third attempt
-            return {"success": True, "data": "valid data"}
+            return {"success": True, "data": "valid data"}, False
 
     # inject a fake method
     rest._request_exec = fake_request_exec
