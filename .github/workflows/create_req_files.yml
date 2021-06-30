@@ -4,6 +4,7 @@ on:
   push:
       branches:
         - master
+        - kzaveri-SNOW-374125-delete-me
 
 jobs:
   build:
