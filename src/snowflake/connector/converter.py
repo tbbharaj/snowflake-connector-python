@@ -649,7 +649,7 @@ class SnowflakeConverter(object):
 
     @staticmethod
     def escape(value):
-        if isinstance(value, list):
+        if isinstance(value, list) or isinstance(value, tuple):
             return value
         if value is None or IS_NUMERIC(value) or IS_BINARY(value):
             return value
@@ -664,6 +664,9 @@ class SnowflakeConverter(object):
     def quote(value) -> str:
         if isinstance(value, list):
             return ",".join(value)
+        elif isinstance(value, tuple):
+            str_list = [str(v) for v in value]
+            return "({})".format(",".join(str_list))
         if value is None:
             return "NULL"
         elif isinstance(value, bool):
